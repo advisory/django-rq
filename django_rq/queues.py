@@ -106,13 +106,21 @@ def get_redis_connection(config, use_strict_redis=False):
 
     return redis_cls(host=config['HOST'], port=config['PORT'], db=config['DB'], password=config.get('PASSWORD', None))
 
+REDIS_CLIENT_BY_QUEUE = dict()
+
 
 def get_connection(name='default', use_strict_redis=False):
     """
     Returns a Redis connection to use based on parameters in settings.RQ_QUEUES
     """
+    global REDIS_CLIENT_BY_QUEUE
     from .settings import QUEUES
-    return get_redis_connection(QUEUES[name], use_strict_redis)
+    try:
+        client = REDIS_CLIENT_BY_QUEUE[name]
+    except KeyError:
+        client = get_redis_connection(QUEUES[name], use_strict_redis)
+        REDIS_CLIENT_BY_QUEUE[name] = client
+    return client
 
 
 def get_connection_by_index(index):
