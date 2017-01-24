@@ -106,12 +106,15 @@ def get_redis_connection(config, use_strict_redis=False):
 
     return redis_cls(host=config['HOST'], port=config['PORT'], db=config['DB'], password=config.get('PASSWORD', None))
 
-REDIS_CLIENT_BY_QUEUE = dict()
+
+# Used as cache to store a Redis client for each queue
+REDIS_CLIENT_BY_QUEUE = {}
 
 
-def get_connection(name='default', use_strict_redis=False):
+def get_cached_client_by_queue(name, use_strict_redis=False):
     """
-    Returns a Redis connection to use based on parameters in settings.RQ_QUEUES
+    Fetch a Redis client from REDIS_CLIENT_BY_QUEUE. Call get_redis_connection to instantiate a new one if client
+    does not exist yet.
     """
     global REDIS_CLIENT_BY_QUEUE
     from .settings import QUEUES
@@ -121,6 +124,13 @@ def get_connection(name='default', use_strict_redis=False):
         client = get_redis_connection(QUEUES[name], use_strict_redis)
         REDIS_CLIENT_BY_QUEUE[name] = client
     return client
+
+
+def get_connection(name='default', use_strict_redis=False):
+    """
+    Returns a Redis connection to use based on parameters in settings.RQ_QUEUES
+    """
+    return get_cached_client_by_queue(name, use_strict_redis)
 
 
 def get_connection_by_index(index):
