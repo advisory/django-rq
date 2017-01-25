@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils import six
+from django.utils.lru_cache import lru_cache
 
 import redis
 from rq.utils import import_attribute
@@ -107,30 +108,13 @@ def get_redis_connection(config, use_strict_redis=False):
     return redis_cls(host=config['HOST'], port=config['PORT'], db=config['DB'], password=config.get('PASSWORD', None))
 
 
-# Used as cache to store a Redis client for each queue
-REDIS_CLIENT_BY_QUEUE = {}
-
-
-def get_cached_client_by_queue(name, use_strict_redis=False):
-    """
-    Fetch a Redis client from REDIS_CLIENT_BY_QUEUE. Call get_redis_connection to instantiate a new one if client
-    does not exist yet.
-    """
-    global REDIS_CLIENT_BY_QUEUE
-    from .settings import QUEUES
-    try:
-        client = REDIS_CLIENT_BY_QUEUE[name]
-    except KeyError:
-        client = get_redis_connection(QUEUES[name], use_strict_redis)
-        REDIS_CLIENT_BY_QUEUE[name] = client
-    return client
-
-
+@lru_cache(maxsize=128, typed=True)
 def get_connection(name='default', use_strict_redis=False):
     """
     Returns a Redis connection to use based on parameters in settings.RQ_QUEUES
     """
-    return get_cached_client_by_queue(name, use_strict_redis)
+    from .settings import QUEUES
+    return get_redis_connection(QUEUES[name], use_strict_redis)
 
 
 def get_connection_by_index(index):
