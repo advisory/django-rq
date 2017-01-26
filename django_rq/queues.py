@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
 from django.utils import six
+from django.utils.lru_cache import lru_cache
 
 import redis
 from rq.utils import import_attribute
@@ -107,6 +108,7 @@ def get_redis_connection(config, use_strict_redis=False):
     return redis_cls(host=config['HOST'], port=config['PORT'], db=config['DB'], password=config.get('PASSWORD', None))
 
 
+@lru_cache(maxsize=128, typed=True)
 def get_connection(name='default', use_strict_redis=False):
     """
     Returns a Redis connection to use based on parameters in settings.RQ_QUEUES
